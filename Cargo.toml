@@ -1,0 +1,12 @@
+[package]
+name = "mysql2mongodb"
+version = "0.1.0"
+authors = ["dalecgu <1677160278@qq.com>"]
+
+[dependencies]
+mysql = "*"
+bson = "0.10.0"
+mongodb = "0.3.7"
+config = "0.7"
+serde = "1.0.15"
+serde_derive = "1.0.15"
