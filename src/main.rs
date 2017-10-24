@@ -45,6 +45,8 @@ impl User {
 
 #[derive(Debug)]
 struct Product {
+    id: String,
+    name: String,
     color: String,
     size: String,
 }
@@ -52,6 +54,8 @@ struct Product {
 impl Product {
     fn to_bson(&self) -> Document {
         let doc = doc! {
+            "id" => &self.id,
+            "name" => &self.name,
             "color" => &self.color,
             "size" => &self.size,
         };
@@ -67,7 +71,7 @@ struct Comment {
     date: String,
     reply_count: u32,
     score: u32,
-    status: u32,
+    status: String,
     title: String,
     days: u32,
     tags: String,
@@ -83,7 +87,7 @@ impl Comment {
             "date" => &self.date,
             "reply_count" => self.reply_count,
             "score" => self.score,
-            "status" => self.status,
+            "status" => &self.status,
             "title" => &self.title,
             "days" => self.days,
             "tags" => &self.tags,
@@ -133,7 +137,7 @@ impl Goods {
 }
 
 fn get_goods_count(pool: &mysql::Pool) -> u32 {
-    let count: Option<u32> = pool.first_exec(r"SELECT count(*) FROM jd.jd_goods", ())
+    let count: Option<u32> = pool.first_exec(r"SELECT count(*) FROM jd_goods", ())
         .map(|result| {
             result.map(|x| x.unwrap()).map(|mut row| {
                 from_value::<u32>(row.pop().unwrap())
@@ -144,7 +148,7 @@ fn get_goods_count(pool: &mysql::Pool) -> u32 {
 }
 
 fn get_goods_by_page(pool: &mysql::Pool, current_size: u32, page_size: u32) -> Vec<Goods> {
-    let selected_goods: Vec<Goods> = pool.prep_exec(r"SELECT * FROM jd.jd_goods LIMIT :current_size, :page_size", params! {
+    let selected_goods: Vec<Goods> = pool.prep_exec(r"SELECT * FROM jd_goods LIMIT :current_size, :page_size", params! {
         "current_size" => current_size,
         "page_size" => page_size,
     }).map(|result| {
@@ -172,7 +176,7 @@ fn get_goods_by_page(pool: &mysql::Pool, current_size: u32, page_size: u32) -> V
 }
 
 fn get_comments_by_goods(pool: &mysql::Pool, good_id: &str) -> Vec<Comment> {
-    let selected_comments: Vec<Comment> = pool.prep_exec(r"SELECT * FROM jd.jd_comment WHERE good_ID = :good_id", params! {
+    let selected_comments: Vec<Comment> = pool.prep_exec(r"SELECT * FROM jd_comment WHERE good_ID = :good_id", params! {
         "good_id" => good_id,
     }).map(|result| {
         result.map(|x| x.unwrap()).map(|mut row| {
@@ -186,6 +190,54 @@ fn get_comments_by_goods(pool: &mysql::Pool, good_id: &str) -> Vec<Comment> {
                     is_mobile: row.take("isMobile").unwrap(),
                 },
                 product: Product {
+                    id: row.take("good_ID").unwrap(),
+                    name: row.take("good_name").unwrap(),
+                    color: row.take("productColor").unwrap(),
+                    size: row.take("productSize").unwrap(),
+                },
+                content: row.take("content").unwrap(),
+                date: row.take("date").unwrap(),
+                reply_count: row.take("replyCount").unwrap(),
+                score: row.take("score").unwrap(),
+                status: row.take("status").unwrap(),
+                title: row.take("title").unwrap(),
+                days: row.take("days").unwrap(),
+                tags: row.take("tags").unwrap(),
+            }
+        }).collect()
+    }).unwrap();
+    return selected_comments;
+}
+
+fn get_comments_count(pool: &mysql::Pool) -> u32 {
+    let count: Option<u32> = pool.first_exec(r"SELECT count(*) FROM jd_comment", ())
+        .map(|result| {
+            result.map(|x| x.unwrap()).map(|mut row| {
+                from_value::<u32>(row.pop().unwrap())
+            })
+        }).unwrap();
+
+    return count.unwrap();
+}
+
+fn get_comments_by_page(pool: &mysql::Pool, current_size: u32, page_size: u32) -> Vec<Comment> {
+    let selected_comments: Vec<Comment> = pool.prep_exec(r"SELECT * FROM jd_comment LIMIT :current_size, :page_size", params! {
+        "current_size" => current_size,
+        "page_size" => page_size,
+    }).map(|result| {
+        result.map(|x| x.unwrap()).map(|mut row| {
+            Comment {
+                user: User {
+                    id: row.take("user_ID").unwrap(),
+                    name: row.take("user_name").unwrap(),
+                    province: row.take("userProvince").unwrap(),
+                    register_time: row.take("userRegisterTime").unwrap(),
+                    level_name: row.take("userLevelName").unwrap(),
+                    is_mobile: row.take("isMobile").unwrap(),
+                },
+                product: Product {
+                    id: row.take("good_ID").unwrap(),
+                    name: row.take("good_name").unwrap(),
                     color: row.take("productColor").unwrap(),
                     size: row.take("productSize").unwrap(),
                 },
@@ -213,22 +265,55 @@ fn main() {
         .expect("Failed to initialize standalone client.");
     let collection = client.db(&settings.mongodb.db).collection(&settings.mongodb.collection);
 
-    let goods_count = get_goods_count(&pool);
-    println!("There are {} goods in total.", goods_count);
+    // let goods_count = get_goods_count(&pool);
+    // println!("There are {} goods in total.", goods_count);
 
-    let mut current_size = 0u32;
+    // let mut current_size = 0u32;
+
+    // let now = SystemTime::now();
+
+    // loop {
+    //     let goods = get_goods_by_page(&pool, current_size, settings.app.page_size);
+
+    //     for x in goods.iter() {
+    //         collection.insert_one(x.to_bson(), None)
+    //             .expect("Failed to insert document.");
+    //     }
+
+    //     println!("Process {} goods.", goods.len());
+    //     match now.elapsed() {
+    //         Ok(elapsed) => {
+    //             println!("{}", elapsed.as_secs());
+    //         }
+    //         Err(e) => {
+    //             println!("Error: {:?}", e);
+    //         }
+    //     }
+
+    //     current_size += settings.app.page_size;
+
+    //     if current_size >= goods_count {
+    //         break;
+    //     }
+    // }
+
+    let page_size = settings.app.page_size;
+    let comments_count = get_comments_count(&pool);
+    println!("There are {} comments in total.", comments_count);
+
+    let mut current_size = 800000u32;
 
     let now = SystemTime::now();
 
     loop {
-        let goods = get_goods_by_page(&pool, current_size, settings.app.page_size);
+        let comments = get_comments_by_page(&pool, current_size, page_size);
 
-        for x in goods.iter() {
+        for x in comments.iter() {
             collection.insert_one(x.to_bson(), None)
                 .expect("Failed to insert document.");
         }
 
-        println!("Process {} goods.", goods.len());
+        println!("Process {} comments.", comments.len());
         match now.elapsed() {
             Ok(elapsed) => {
                 println!("{}", elapsed.as_secs());
@@ -238,9 +323,9 @@ fn main() {
             }
         }
 
-        current_size += settings.app.page_size;
+        current_size += page_size;
 
-        if current_size >= goods_count {
+        if current_size > comments_count {
             break;
         }
     }

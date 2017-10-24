@@ -1,11 +1,11 @@
 [mysql]
-url = "mysql://root:123456@192.168.1.35:3306"
+url = "mysql://root:123456@192.168.1.35:3306/jd"
 
 [mongodb]
 host = "localhost"
 port = 27017
 db = "test"
-collection = "goods"
+collection = "comments"
 
 [app]
-page_size = 10
+page_size = 10000
